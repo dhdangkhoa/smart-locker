@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "frontend/**"
+      - "app/frontend/**"
       - ".github/workflows/dart.yml"
   workflow_dispatch:
 
@@ -38,17 +38,17 @@ jobs:
         run: flutter config --enable-web
 
       - name: Install dependencies
-        working-directory: ./frontend
+        working-directory: ./app/frontend
         run: flutter pub get
 
       - name: Build Flutter Web
-        working-directory: ./frontend
+        working-directory: ./app/frontend
         run: |
           flutter build web --release \
             --base-href "/${{ github.event.repository.name }}/"
 
       - name: Verify build
-        run: test -f app/frontend/build/web/index.html
+        run: test -f /app/frontend/build/web/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -56,7 +56,7 @@ jobs:
       - name: Upload Flutter Web
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .app/frontend/build/web
+          path: ./app/frontend/build/web
 
       - name: Deploy
         id: deployment
