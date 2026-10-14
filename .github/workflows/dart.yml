@@ -1,3 +1,4 @@
+
 name: Deploy Flutter Web
 
 on:
@@ -48,7 +49,12 @@ jobs:
             --base-href "/${{ github.event.repository.name }}/"
 
       - name: Verify build
-        run: test -f ./app/frontend/build/web/index.html
+        run: |
+          echo "Checking generated files..."
+          ls -la app/frontend/build/web
+          test -f app/frontend/build/web/index.html
+          echo "Checking base href..."
+          grep -n "base href" app/frontend/build/web/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
