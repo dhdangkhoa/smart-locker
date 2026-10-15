@@ -7,10 +7,10 @@ class LockerProvider extends ChangeNotifier {
   final List<CompartmentModel> _compartments = [
     CompartmentModel(id: '1', boxNumber: '01', status: CompartmentStatus.available),
     CompartmentModel(id: '2', boxNumber: '02', status: CompartmentStatus.available),
-    CompartmentModel(id: '3', boxNumber: '03', status: CompartmentStatus.available),
-    CompartmentModel(id: '4', boxNumber: '04', status: CompartmentStatus.available),
-    CompartmentModel(id: '5', boxNumber: '05', status: CompartmentStatus.available),
-    CompartmentModel(id: '6', boxNumber: '06', status: CompartmentStatus.available),
+    // CompartmentModel(id: '3', boxNumber: '03', status: CompartmentStatus.available),
+    // CompartmentModel(id: '4', boxNumber: '04', status: CompartmentStatus.available),
+    // CompartmentModel(id: '5', boxNumber: '05', status: CompartmentStatus.available),
+    // CompartmentModel(id: '6', boxNumber: '06', status: CompartmentStatus.available),
   ];
 
   List<CompartmentModel> get compartments => _compartments;
