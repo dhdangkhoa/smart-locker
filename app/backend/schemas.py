@@ -19,10 +19,13 @@ class LockerCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     tracking_code: str
-    courier_id: int
-    customer_id: int
-    locker_id: int
+    courier_id: Optional[int] = None
+    customer_id: Optional[int] = None
+    customer_username: Optional[str] = None
+    locker_id: Optional[int] = None
 
 class VerifyFaceAndPickup(BaseModel):
     tracking_code: str
-    face_id: str
+    customer_id: Optional[int] = None
+    customer_username: Optional[str] = None
+    face_id: Optional[str] = None

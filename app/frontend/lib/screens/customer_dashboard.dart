@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/logout_button.dart';
 import 'package:provider/provider.dart';
 import '../providers/locker_provider.dart';
+import '../providers/auth_provider.dart';
 
 class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
@@ -13,7 +14,6 @@ class CustomerDashboard extends StatefulWidget {
 class _CustomerDashboardState extends State<CustomerDashboard> {
   final _trackingController = TextEditingController();
 
-
   void _handlePickup() {
     final trackingCode = _trackingController.text.trim();
     if (trackingCode.isEmpty) {
@@ -24,13 +24,33 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     }
 
     final lockerProvider = context.read<LockerProvider>();
+    final authProvider = context.read<AuthProvider>();
+    final currentUser = authProvider.currentUser;
 
     final targetBox = lockerProvider.findBoxByTrackingCode(trackingCode);
 
     if (targetBox == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Couldn't find the package/Invalid code!"),
+        const SnackBar(
+          content: Text("This order is not in the locker!"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // check username/id
+    final recipient = targetBox.recipient?.trim().toLowerCase();
+    final currentUsername = currentUser?.username.trim().toLowerCase();
+    final currentUserId = currentUser?.id.trim().toLowerCase();
+
+    final isCorrectRecipient = recipient != null &&
+        (recipient == currentUsername || recipient == currentUserId);
+
+    if (!isCorrectRecipient) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("You can not get this package!"),
           backgroundColor: Colors.red,
         ),
       );
@@ -47,7 +67,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         icon: const Icon(Icons.lock_open_rounded, size: 52, color: Colors.green),
         title: Text('${targetBox.boxNumber} has been opened!'),
         content: Text(
-          'Order: $trackingCode\nYour package is ready for pickup.',
+          'Order: $trackingCode\nRecipient: ${currentUser?.username ?? targetBox.recipient}\nYour package is ready for pickup.',
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -69,6 +89,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = context.watch<AuthProvider>().currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pickup package from Smart Locker'),
@@ -100,6 +122,17 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
+                if (currentUser != null) ...[
+                  Text(
+                    'Logged in as: ${currentUser.username}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 const Text(
                   'Enter the exact tracking code or order number provided to unlock the locker and collect your package.',
                   textAlign: TextAlign.center,

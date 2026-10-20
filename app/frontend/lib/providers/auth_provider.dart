@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
-
+import '../services/api_service.dart';
 class AuthProvider extends ChangeNotifier {
   final _storage = const FlutterSecureStorage();
 
@@ -14,45 +14,53 @@ class AuthProvider extends ChangeNotifier {
   UserRole get role => _currentUser?.role ?? UserRole.unknown;
   bool get isLoading => _isLoading;
 
-  // simulate the login states
   Future<bool> login(String username, String password) async {
     _isLoading = true;
     notifyListeners();
+    
+    final data = await APIService.login(username, password);
 
-    await Future.delayed(const Duration(seconds: 1));
-    if (username == 'admin' && password == '123') {
+    if (data != null) {
       _currentUser = UserModel(
-        id: '1', 
-        username: 'Admin user', 
-        role: UserRole.admin, 
-        token: 'test_admin',
-        );
-    } else if (username == 'courier' && password == '123') {
-      _currentUser = UserModel(
-        id: '2',
-        username: 'Courier 01',
-        role: UserRole.courier,
-        token: 'test_courier',
+        id: data['id'].toString(), 
+        username: data['username'], 
+        role: _parseRole(data['role']), 
+        token: data['token'] ?? 'fake_token'
       );
-    } else if (username == 'customer' && password == '123') {
-      _currentUser = UserModel(
-        id: '3', 
-        username: 'Customer A',
-        role: UserRole.customer, 
-        token: 'test_customer',
-        );
+
+      await _storage.write(key: 'storage_token', value: _currentUser!.token);
+      _isLoading = false;
+      notifyListeners();
+      return true;
     } else {
       _isLoading = false;
       notifyListeners();
-      return false; // incorrect login info
+      return false;
     }
-
-    await _storage.write(key: 'storage_token', value: _currentUser!.token);
-    _isLoading = false;
-
-    notifyListeners();
+  }
   
-    return true;
+  Future<bool> register(String username, String password, String role) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final success = await APIService.register(username, password, role);
+
+    _isLoading = false;
+    notifyListeners();
+    return success;
+  }
+
+  UserRole _parseRole(String roleStr) {
+    switch (roleStr.toLowerCase()) {
+      case 'admin':
+        return UserRole.admin;
+      case 'courier':
+        return UserRole.courier;
+      case 'customer':
+        return UserRole.customer;
+      default:
+        return UserRole.unknown;
+    }
   }
 
   Future<void> logout() async {

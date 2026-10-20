@@ -2,24 +2,73 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/locker_models.dart';
 import '../providers/locker_provider.dart';
+import '../services/api_service.dart';
 import '../widgets/logout_button.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
 
-  // Edit or Delete the Order Code Assigned to a Locker Compartment
-  void _showEditTrackingDialog(BuildContext context, CompartmentModel box) {
-    final controller = TextEditingController(text: box.trackingCode ?? '');
+  void _confirmDeleteOrder(BuildContext context, CompartmentModel box) {
+    if (box.trackingCode == null || box.trackingCode!.isEmpty) return;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Quản lý Ngăn số ${box.boxNumber}'),
+        title: Text('Delete Order from Box ${box.boxNumber}'),
+        content: Text(
+          'Are you sure you want to remove order "${box.trackingCode}" from this compartment?\n',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final lockerProvider = context.read<LockerProvider>();
+              final result = await APIService.deleteOrder(box.trackingCode!);
+              if (result['success'] == true) {
+                lockerProvider.releaseCompartment(box.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Order ${box.trackingCode} is deleted!')),
+                  );
+                }
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(result['message'] ?? 'Failed to delete order'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Edit or Delete the Order Code Assigned to a Locker Compartment
+  void _showEditTrackingDialog(BuildContext context, CompartmentModel box) {
+    final controller = TextEditingController(text: box.trackingCode ?? '');
+    final recipientController = TextEditingController(text: box.recipient ?? '');
+    final hasActiveOrder = box.trackingCode != null && box.trackingCode!.isNotEmpty;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Box No.${box.boxNumber}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Trạng thái hiện tại: ${box.status.name.toUpperCase()}'),
+            Text('State: ${box.status.name.toUpperCase()}'),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -29,23 +78,90 @@ class AdminDashboard extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: recipientController,
+              decoration: const InputDecoration(
+                labelText: "Recipient Username / ID",
+                border: OutlineInputBorder(),
+              ),
+            ),
           ],
         ),
         actions: [
+          if (hasActiveOrder)
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Delete Order'),
+              onPressed: () async {
+                final lockerProvider = context.read<LockerProvider>();
+                Navigator.pop(ctx);
+                
+                final result = await APIService.deleteOrder(box.trackingCode!);
+                if (result['success'] == true) {
+                  lockerProvider.releaseCompartment(box.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Order ${box.trackingCode} deleted!')),
+                    );
+                  }
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result['message'] ?? 'Failed to delete order'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-            onPressed: () {
+            onPressed: () async {
               final newCode = controller.text.trim();
-              context.read<LockerProvider>().adminUpdateTrackingCode(box.id, newCode);
+              final newRecipient = recipientController.text.trim();
+              final lockerProvider = context.read<LockerProvider>();
               Navigator.pop(ctx);
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Compartment ${box.boxNumber} updated successfully!')),
-              );
+
+              if (newCode.isEmpty && hasActiveOrder) {
+                // If cleared, mark order as deleted in DB
+                final result = await APIService.deleteOrder(box.trackingCode!);
+                if (result['success'] == true) {
+                  lockerProvider.releaseCompartment(box.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Order ${box.trackingCode} is deleted!')),
+                    );
+                  }
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result['message'] ?? 'Failed to delete order'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } else {
+                lockerProvider.adminUpdateTrackingCode(
+                  box.id, 
+                  newCode,
+                  newRecipient: newRecipient.isEmpty ? null : newRecipient,
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Compartment ${box.boxNumber} updated successfully!')),
+                  );
+                }
+              }
             },
             child: const Text('Save'),
           ),
@@ -134,7 +250,7 @@ class AdminDashboard extends StatelessWidget {
                       ),
                       subtitle: Text(
                         box.status == CompartmentStatus.occupied
-                            ? 'Code: ${box.trackingCode}'
+                            ? 'Code: ${box.trackingCode}${box.recipient != null ? ' | Recipient: ${box.recipient}' : ''}'
                             : 'Current state: ${box.status.name.toUpperCase()}',
                         style: TextStyle(
                           color: box.status == CompartmentStatus.occupied ? Colors.blue : Colors.black,
@@ -144,6 +260,12 @@ class AdminDashboard extends StatelessWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (box.status == CompartmentStatus.occupied && box.trackingCode != null)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              tooltip: 'Delete Order',
+                              onPressed: () => _confirmDeleteOrder(context, box),
+                            ),
                           // Edit/Add/Delete
                           IconButton(
                             icon: const Icon(Icons.edit_note, color: Colors.blue),

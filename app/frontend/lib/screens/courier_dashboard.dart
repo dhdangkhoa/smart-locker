@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/locker_models.dart';
 import '../providers/locker_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../widgets/logout_button.dart';
 
 class CourierDashboard extends StatefulWidget {
@@ -9,103 +11,159 @@ class CourierDashboard extends StatefulWidget {
 
   @override
   State<CourierDashboard> createState() => _CourierDashboardState();
-
 }
-
 
 class _CourierDashboardState extends State<CourierDashboard> {
   final _trackingCodeController = TextEditingController();
-  
+  final _customerController = TextEditingController(); 
+
+  @override
+  void dispose() {
+    _trackingCodeController.dispose();
+    _customerController.dispose();
+    super.dispose();
+  }
+
   void _showDropoffDialog(BuildContext context) {
     showDialog(
-      context: context,  
+      context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Place the package in locker.'),
+        title: const Text('Place package in locker'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter or Scan tracking code.'),
+            const Text('Enter tracking code and recipient details:'),
             const SizedBox(height: 12),
             TextField(
               controller: _trackingCodeController,
               decoration: const InputDecoration(
-                labelText: 'Order code (e.g, SPX123456)',
+                labelText: 'Tracking Code (e.g., SPX123456)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // enter recipient details
+            TextField(
+              controller: _customerController,
+              decoration: const InputDecoration(
+                labelText: 'Recipient Username / ID',
                 border: OutlineInputBorder(),
               ),
             ),
           ],
         ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _trackingCodeController.clear();
+              _customerController.clear();
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Cancel'),
           ),
-        ElevatedButton(
-          onPressed: () {
-            final code = _trackingCodeController.text.trim();
-            if (code.isEmpty) return;
+          ElevatedButton(
+            onPressed: () {
+              final code = _trackingCodeController.text.trim();
+              final customer = _customerController.text.trim();
 
-            Navigator.pop(dialogContext);
-            _processDropoff(context, code);
-            _trackingCodeController.clear();
-          }, 
-          child: const Text('Confirm.'),
+              if (code.isEmpty || customer.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill in all fields!')),
+                );
+                return;
+              }
+
+              Navigator.pop(dialogContext);
+              _processDropoff(code, customer);
+              
+              _trackingCodeController.clear();
+              _customerController.clear();
+            },
+            child: const Text('Confirm'),
           )
         ],
       ),
     );
   }
 
-  void _processDropoff(BuildContext context, String trackingCode) {
-    final lockerProvider = context.read<LockerProvider>();
-    final assignedBox = lockerProvider.assignCompartmentforPackage(trackingCode);
+  void _processDropoff(String trackingCode, String customer) async {
+    final authProvider = context.read<AuthProvider>();
+    final courierId = int.tryParse(authProvider.currentUser?.id ?? '1') ?? 1;
 
-    if (assignedBox == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No available compartments at the moment.'),
-          backgroundColor: Colors.black,
-        )
+    // Call backend API to save order in DB with status 'waiting'
+    final result = await APIService.storeOrder(
+      trackingCode: trackingCode,
+      recipient: customer,
+      courierId: courierId,
+    );
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final lockerNumber = result['data']?['locker_number'] ?? 'Locker';
+      final lockerProvider = context.read<LockerProvider>();
+      lockerProvider.updateCompartmentStatus(
+        lockerNumber,
+        CompartmentStatus.occupied,
+        trackingCode: trackingCode,
+        recipient: customer,
       );
-      return;
-    }
-    
-    showDialog(
-      context: (context),
-      barrierDismissible: false, 
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.lock_open_rounded, size: 48, color: Colors.green),
-        title: Text('${assignedBox.boxNumber} has been opened.'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text (
-              'Order: $trackingCode',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.lock_open_rounded, size: 48, color: Colors.green),
+          title: Text('$lockerNumber has been opened.'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Order: $trackingCode',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-            const SizedBox(height: 8),
-            const Text(
-              'Please place the package in the compartment and close the locker door.',
-              textAlign: TextAlign.center,
+              const SizedBox(height: 4),
+              Text(
+                'Recipient: $customer',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Status: waiting',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Please place the package in the compartment and close the locker door.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Closed'),
             ),
           ],
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx), 
-            child: const Text('Closed'),
-          ),
-        ],
-      ),
-    );
+      );
+    } else {
+      final message = result['message']?.toString() ?? 'No available compartments or error occurred.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     final lockerProvider = context.watch<LockerProvider>();
     final compartments = lockerProvider.compartments;
     final availableCount = lockerProvider.availableCompartments.length;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Locker Station'),
@@ -132,17 +190,17 @@ class _CourierDashboardState extends State<CourierDashboard> {
                         const SizedBox(height: 4),
                         Text(
                           'Available $availableCount / ${compartments.length}',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ],
                     ),
                     ElevatedButton.icon(
                       onPressed: () => _showDropoffDialog(context),
                       icon: const Icon(Icons.add_box),
-                      label: const Text("Enter package's code: "),
+                      label: const Text("Deposit Package"),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.blue,
                       ),
                     ),
                   ],
@@ -171,15 +229,13 @@ class _CourierDashboardState extends State<CourierDashboard> {
                   int crossAxisCount = 3;
                   int totalItems = compartments.length;
                   int rowCount = (totalItems / crossAxisCount).ceil();
-                  if (rowCount == 0) rowCount =1;
+                  if (rowCount == 0) rowCount = 1;
 
-                  // spacing
                   double crossAxisSpacing = 8.0;
                   double mainAxisSpacing = 8.0;
 
-                  // calculate width and height for each box
                   double totalHorizontalSpacing = (crossAxisCount - 1) * crossAxisSpacing;
-                  double totalVerticalSpacing = (rowCount -1) * mainAxisSpacing;
+                  double totalVerticalSpacing = (rowCount - 1) * mainAxisSpacing;
 
                   double itemWidth = (constraints.maxWidth - totalHorizontalSpacing) / crossAxisCount;
                   double itemHeight = (constraints.maxHeight - totalVerticalSpacing) / rowCount;
@@ -222,23 +278,19 @@ class _CourierDashboardState extends State<CourierDashboard> {
   Widget _buildCompartmentCard(CompartmentModel box) {
     Color cardColor;
     IconData icon;
-    String statusText;
 
     switch (box.status) {
       case CompartmentStatus.available:
         cardColor = Colors.green;
         icon = Icons.lock_open;
-        statusText = 'Available';
         break;
       case CompartmentStatus.occupied:
         cardColor = Colors.red;
         icon = Icons.lock;
-        statusText = 'Occupied';
         break;
       case CompartmentStatus.maintenance:
         cardColor = Colors.grey;
         icon = Icons.build;
-        statusText = 'Maintenance';
         break;
     }
 
