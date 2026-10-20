@@ -180,4 +180,23 @@ class APIService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  static Future<Map<String, dynamic>> updateLockerStatus(String lockerIdOrNumber, String status) async {
+    try {
+      final url = Uri.parse('$baseURL/lockers/$lockerIdOrNumber/status');
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'status': status}),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': data};
+      } else {
+        return {'success': false, 'message': data['detail'] ?? 'Update failed'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

@@ -15,6 +15,9 @@ class CourierCreate(BaseModel):
 class LockerCreate(BaseModel):
     locker_number: str
 
+class LockerStatusUpdate(BaseModel):
+    status: str
+
 
 
 class OrderCreate(BaseModel):

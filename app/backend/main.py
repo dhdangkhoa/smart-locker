@@ -63,6 +63,62 @@ def get_lockers(db: Session = Depends(get_db)):
     return results
 
 
+# admin updates compartment status in database (e.g. maintenance / available)
+@app.patch("/lockers/{locker_id_or_number}/status", summary="Admin updates locker status in database")
+@app.put("/lockers/{locker_id_or_number}/status", summary="Admin updates locker status in database")
+def update_locker_status(locker_id_or_number: str, data: schemas.LockerStatusUpdate, db: Session = Depends(get_db)):
+    locker = None
+    if locker_id_or_number.isdigit():
+        locker = db.query(models.Locker).filter(models.Locker.id == int(locker_id_or_number)).first()
+    if not locker:
+        locker = db.query(models.Locker).filter(models.Locker.locker_number.ilike(locker_id_or_number.strip())).first()
+
+    if not locker:
+        raise HTTPException(status_code=404, detail="Compartment not found!")
+
+    target_status = data.status.lower().strip()
+    if target_status not in ["available", "maintenance", "occupied"]:
+        raise HTTPException(status_code=400, detail="Invalid status! Must be available, maintenance, or occupied.")
+
+    locker.status = target_status
+    db.commit()
+    db.refresh(locker)
+
+    return {
+        "message": f"Compartment {locker.locker_number} status updated to {locker.status}",
+        "locker_id": locker.id,
+        "locker_number": locker.locker_number,
+        "status": locker.status
+    }
+
+
+@app.post("/lockers/{locker_id_or_number}/toggle-maintenance", summary="Admin toggles maintenance status in database")
+def toggle_maintenance(locker_id_or_number: str, db: Session = Depends(get_db)):
+    locker = None
+    if locker_id_or_number.isdigit():
+        locker = db.query(models.Locker).filter(models.Locker.id == int(locker_id_or_number)).first()
+    if not locker:
+        locker = db.query(models.Locker).filter(models.Locker.locker_number.ilike(locker_id_or_number.strip())).first()
+
+    if not locker:
+        raise HTTPException(status_code=404, detail="Compartment not found!")
+
+    if locker.status == "maintenance":
+        locker.status = "available"
+    else:
+        locker.status = "maintenance"
+
+    db.commit()
+    db.refresh(locker)
+
+    return {
+        "message": f"Compartment {locker.locker_number} status is now {locker.status}",
+        "locker_id": locker.id,
+        "locker_number": locker.locker_number,
+        "status": locker.status
+    }
+
+
 # customer management 
 @app.post("/auth/customers/register", summary="Customer Account Registration")
 def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_db)):

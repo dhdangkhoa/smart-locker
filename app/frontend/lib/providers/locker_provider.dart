@@ -124,23 +124,33 @@ class LockerProvider extends ChangeNotifier {
     }
   }
 
-  void adminToggleMaintenance(String compartmentId) {
-    final index = _compartments.indexWhere((c) => c.id == compartmentId);
+  Future<bool> adminToggleMaintenance(String compartmentId) async {
+    final index = _compartments.indexWhere((c) => c.id == compartmentId || c.boxNumber == compartmentId);
     if (index != -1) {
       final box = _compartments[index];
-      final newStatus = box.status == CompartmentStatus.maintenance
-          ? CompartmentStatus.available
-          : CompartmentStatus.maintenance;
+      final newStatusStr = box.status == CompartmentStatus.maintenance
+          ? 'available'
+          : 'maintenance';
 
-      _compartments[index] = CompartmentModel(
-        id: box.id,
-        boxNumber: box.boxNumber,
-        status: newStatus,
-        trackingCode: newStatus == CompartmentStatus.maintenance ? null : box.trackingCode,
-        recipient: newStatus == CompartmentStatus.maintenance ? null : box.recipient,
-      );
-      notifyListeners();
+      // Call API to persist new status in Database
+      final result = await APIService.updateLockerStatus(box.id, newStatusStr);
+      if (result['success'] == true) {
+        final newStatus = newStatusStr == 'maintenance'
+            ? CompartmentStatus.maintenance
+            : CompartmentStatus.available;
+
+        _compartments[index] = CompartmentModel(
+          id: box.id,
+          boxNumber: box.boxNumber,
+          status: newStatus,
+          trackingCode: newStatus == CompartmentStatus.maintenance ? null : box.trackingCode,
+          recipient: newStatus == CompartmentStatus.maintenance ? null : box.recipient,
+        );
+        notifyListeners();
+        return true;
+      }
     }
+    return false;
   }
 
 }

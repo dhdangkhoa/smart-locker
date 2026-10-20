@@ -279,8 +279,21 @@ class AdminDashboard extends StatelessWidget {
                               color: box.status == CompartmentStatus.maintenance ? Colors.green : Colors.grey.shade700,
                             ),
                             tooltip: box.status == CompartmentStatus.maintenance ? 'Reopen Compartment' : 'Maintenance',
-                            onPressed: () {
-                              context.read<LockerProvider>().adminToggleMaintenance(box.id);
+                            onPressed: () async {
+                              final wasMaintenance = box.status == CompartmentStatus.maintenance;
+                              final success = await context.read<LockerProvider>().adminToggleMaintenance(box.id);
+                              if (context.mounted) {
+                                if (success) {
+                                  final newStatusName = wasMaintenance ? 'AVAILABLE' : 'MAINTENANCE';
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Compartment ${box.boxNumber} status changed to $newStatusName in DB!')),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Failed to update compartment status in DB!'), backgroundColor: Colors.red),
+                                  );
+                                }
+                              }
                             },
                           ),
                         ],
