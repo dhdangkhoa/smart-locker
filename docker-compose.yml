@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   # service database
@@ -21,7 +21,7 @@ services:
     build: . 
     container_name: project_app
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       DATABASE_URL: DATABASE_URL = postgresql://admin_dev:smartlockerdb@localhost:5432/smartlockerdatabase
     depends_on:

@@ -1,13 +1,20 @@
-FROM node:18-alpine
+FROM python:3.14-slim
 
-WORKDIR /smartlocker
+WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
 
-COPY . .
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 3000
 
-CMD ["npm", "start"]
+COPY src/app/backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
+
+COPY src/app/backend/ ./
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
