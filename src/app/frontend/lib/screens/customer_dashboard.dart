@@ -3,6 +3,7 @@ import '../widgets/logout_button.dart';
 import 'package:provider/provider.dart';
 import '../providers/locker_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 
 class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
@@ -57,34 +58,74 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       return;
     }
     
-    lockerProvider.releaseCompartment(targetBox.id);
+    final int? customerId = int.tryParse(currentUser?.id ?? '');
+    final String? customerUsername = currentUser?.username;
 
-    // display 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.lock_open_rounded, size: 52, color: Colors.green),
-        title: Text('${targetBox.boxNumber} has been opened!'),
-        content: Text(
-          'Order: $trackingCode\nRecipient: ${currentUser?.username ?? targetBox.recipient}\nYour package is ready for pickup.',
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _trackingController.clear();
-            },
-            child: const Text('Done!'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
+
+    APIService.pickupOrder(
+      trackingCode: trackingCode,
+      customerId: customerId,
+      customerUsername: customerUsername,
+    ).then((result) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+      }
+
+      if (result['success'] == true) {
+        lockerProvider.releaseCompartment(targetBox.id);
+
+        // display success dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.lock_open_rounded, size: 52, color: Colors.green),
+            title: Text('${targetBox.boxNumber} has been opened!'),
+            content: Text(
+              'Order: $trackingCode\nRecipient: ${currentUser?.username ?? targetBox.recipient}\nYour package is ready for pickup.',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _trackingController.clear();
+                },
+                child: const Text('Done!'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Pickup failed!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }).catchError((err) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $err'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
   }
 
   @override
