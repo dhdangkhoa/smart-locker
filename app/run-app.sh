@@ -3,6 +3,7 @@
 
 echo "Backend FastAPI"
 cd backend/
+source env/bin/activate
 uvicorn main:app --reload &
 BACKEND_PID=$! 
 
