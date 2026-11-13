@@ -29,7 +29,7 @@ void setup() {
 }
 
 void loop() {
-  readAllPackageData();
+  printAllPackageData();
   delay(5000);
 }
 

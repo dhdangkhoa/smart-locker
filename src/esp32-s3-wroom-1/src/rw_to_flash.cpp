@@ -72,30 +72,36 @@ void writePackageData(const QRCode_Data &data) {
     Serial.printf("Da luu don thu %d: %s\n", count + 1, combined);
 }
 
-void readAllPackageData() {
+int readAllPackageData(QRCode_Data list[], int maxItems) {
     preferences.begin("package-data", true);
-
+    
     int count = preferences.getInt("count", 0);
-    Serial.printf("\n=== DANH SACH DON HANG TRONG FLASH (%d don) ===\n", count);
+    if (count > maxItems) count = maxItems; 
 
-    if (count == 0) {
-        Serial.println("Chua co du lieu nao trong Flash.");
-        preferences.end();
-        return;
-    }
-
-    char key[16];
-    char combined[64];
+    char key[10];
+    char combined[30];
 
     for (int i = 0; i < count; i++) {
+        memset(&list[i], 0, sizeof(QRCode_Data));
         snprintf(key, sizeof(key), "item_%d", i);
         
         if (preferences.getString(key, combined, sizeof(combined)) > 0) {
-            Serial.printf("%d. %s\n", i + 1, combined);
+            sscanf(combined, "%14[^,], %14[^,], %14[^\n]", list[i].MaDH, list[i].NVGH, list[i].KH);
         }
     }
 
     preferences.end();
+    return count; 
+}
+
+void printAllPackageData() {
+    QRCode_Data list[MAX_PACKAGES];
+    int total = readAllPackageData(list, MAX_PACKAGES);
+
+    Serial.printf("\n DANH SACH TRONG FLASH (%d don) \n", total);
+    for (int i = 0; i < total; i++) {
+      Serial.printf("%d. %s, %s, %s\n", i + 1, list[i].MaDH, list[i].NVGH, list[i].KH);
+    }
 }
 
 void deletePackageData(const char* iMaDH) {

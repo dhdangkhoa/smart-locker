@@ -14,8 +14,9 @@ QRCode_Data processReadData(const uint8_t payload[], int payload_len);
 
 void writePackageData(const QRCode_Data &data);
 
-void readAllPackageData();
+int readAllPackageData(QRCode_Data list[], int maxItems);
 
+void printAllPackageData();
 void deletePackageData(const char* iMaDH);
 
 void clearAllPackageData();
