@@ -2,13 +2,10 @@
 #include "qrcode_reader.h"
 
 
-
 void setup() {
   Serial.begin(115200);
-  delay(2000);
   //Serial.setDebugOutput(true);
-  Serial.println();
-  
+  Serial.println();  
   if (!initCamera()) {
     Serial.println("Camera init failed!");
     return;
@@ -29,7 +26,8 @@ void setup() {
 }
 
 void loop() {
-  printAllPackageData();
-  delay(5000);
+
+  delay(300);
+  //displayLCD();
 }
 

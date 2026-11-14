@@ -1,7 +1,9 @@
 #include "qrcode_reader.h"
 
 
+
 void qrScannerTask(void *pvParameters) {
+  LCDInit();
   struct quirc *q = quirc_new();
   
   if (!q) {
@@ -19,7 +21,7 @@ void qrScannerTask(void *pvParameters) {
   }
 
   Serial.println("Direct Grayscale QR Scanning Engine Loop Active.");
-
+  
   while (1) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
@@ -46,8 +48,19 @@ void qrScannerTask(void *pvParameters) {
 
         if (err == QUIRC_SUCCESS) {
           Serial.printf("[QR CODE DETECTED]: %s\n", data.payload);
-          QRCode_Data read_data = processReadData(data.payload, data.payload_len);
-          writePackageData(read_data);
+          
+          static String lastPayload = "";
+          String currentPayload = String((const char*)data.payload);
+
+          if (currentPayload != lastPayload) {
+            lastPayload = currentPayload;
+
+
+            LCDPrintQR((const char*)data.payload, data.payload_len);
+
+            QRCode_Data read_data = processReadData(data.payload, data.payload_len);
+            writePackageData(read_data);
+          }
         } else {
           Serial.printf("Decoding failed pattern index: %s\n", quirc_strerror(err));
         }

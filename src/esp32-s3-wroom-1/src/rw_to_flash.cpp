@@ -41,7 +41,7 @@ void writePackageData(const QRCode_Data &data) {
         snprintf(key, sizeof(key), "item_%d", i);
         
         if (preferences.getString(key, existingCombined, sizeof(existingCombined)) > 0) {
-            if (sscanf(existingCombined, "%14[^,]", existingMaDH) == 1) {
+            if (sscanf(existingCombined, "%9[^,]", existingMaDH) == 1) {
                 if (strcmp(existingMaDH, data.MaDH) == 0) {
                     Serial.printf("Bo qua: Ma don '%s' da ton tai!\n", data.MaDH);
                     preferences.end(); 
@@ -86,7 +86,7 @@ int readAllPackageData(QRCode_Data list[], int maxItems) {
         snprintf(key, sizeof(key), "item_%d", i);
         
         if (preferences.getString(key, combined, sizeof(combined)) > 0) {
-            sscanf(combined, "%14[^,], %14[^,], %14[^\n]", list[i].MaDH, list[i].NVGH, list[i].KH);
+            sscanf(combined, "%9[^,], %9[^,], %9[^\n]", list[i].MaDH, list[i].NVGH, list[i].KH);
         }
     }
 
@@ -117,7 +117,7 @@ preferences.begin("package-data", false);
 
         if (preferences.isKey(key)) {
             if (preferences.getString(key, combined, sizeof(combined)) > 0) {
-                if (sscanf(combined, "%14[^,]", existingMaDH) == 1) {
+                if (sscanf(combined, "%9[^,]", existingMaDH) == 1) {
                     if (strcmp(existingMaDH, iMaDH) == 0) {
                         preferences.remove(key); 
                         preferences.end();
