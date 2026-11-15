@@ -1,7 +1,5 @@
 #include "qrcode_reader.h"
 
-
-
 void qrScannerTask(void *pvParameters) {
   LCDInit();
   struct quirc *q = quirc_new();
@@ -23,6 +21,12 @@ void qrScannerTask(void *pvParameters) {
   Serial.println("Direct Grayscale QR Scanning Engine Loop Active.");
   
   while (1) {
+    // Nếu đang ngủ, tạm dừng lấy frame
+    if (!isAwake) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
+
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
       vTaskDelay(pdMS_TO_TICKS(50));
@@ -37,6 +41,11 @@ void qrScannerTask(void *pvParameters) {
       
       // Because it's already grayscale, direct block memory copy is incredibly quick
       memcpy(q_buf, fb->buf, q_w * q_h);
+
+      // TRẢ FRAME BUFFER NGAY LẬP TỨC ĐỂ TRÁNH LỖI cam_hal: EV-VSYNC-OVF
+      esp_camera_fb_return(fb);
+      fb = NULL;
+
       quirc_end(q);
 
       int count = quirc_count(q);
@@ -49,12 +58,14 @@ void qrScannerTask(void *pvParameters) {
         if (err == QUIRC_SUCCESS) {
           Serial.printf("[QR CODE DETECTED]: %s\n", data.payload);
           
+          // Reset bộ đếm 10 giây khi quét được mã QR
+          wakeUpTimer = millis();
+
           static String lastPayload = "";
           String currentPayload = String((const char*)data.payload);
 
           if (currentPayload != lastPayload) {
             lastPayload = currentPayload;
-
 
             LCDPrintQR((const char*)data.payload, data.payload_len);
 
@@ -67,7 +78,10 @@ void qrScannerTask(void *pvParameters) {
       }
     }
     
-    esp_camera_fb_return(fb);
+    if (fb) {
+      esp_camera_fb_return(fb);
+      fb = NULL;
+    }
 
     vTaskDelay(pdMS_TO_TICKS(30));
   }

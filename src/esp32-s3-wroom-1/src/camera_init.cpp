@@ -27,7 +27,7 @@ bool initCamera() {
   config.xclk_freq_hz = 20000000;
   config.frame_size   = FRAMESIZE_QVGA;
   config.pixel_format = PIXFORMAT_GRAYSCALE;
-  config.grab_mode    = CAMERA_GRAB_WHEN_EMPTY;
+  config.grab_mode    = CAMERA_GRAB_LATEST;
   config.jpeg_quality = 12;                 
   config.fb_location  = CAMERA_FB_IN_PSRAM;
   config.fb_count     = 2;                  
