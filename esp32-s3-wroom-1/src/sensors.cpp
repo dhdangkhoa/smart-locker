@@ -13,9 +13,6 @@ void Sensor_Init(void) {
     pinMode(PIN_SW_PARCEL_2, INPUT);
 
     pinMode(PIN_BTN_PWR, INPUT_PULLUP);
-    pinMode(PIN_BTN_QR1, INPUT_PULLUP);
-    pinMode(PIN_BTN_QR2, INPUT_PULLUP);
-    pinMode(PIN_BTN_QR3, INPUT_PULLUP);
 
     pinMode(PIN_LED_SLOT_1, OUTPUT);
     pinMode(PIN_LED_SLOT_2, OUTPUT);
@@ -86,6 +83,7 @@ bool Sensor_WaitForDoorState(uint8_t slot_id, DoorState_t target_state, uint32_t
 }
 
 bool Sensor_IsButtonPressed(uint8_t btn_pin) {
+    if (btn_pin == 0xFF) return false;
     if (digitalRead(btn_pin) == LOW) {
         delay(DEBOUNCE_TIME_MS);
         if (digitalRead(btn_pin) == LOW) {

@@ -16,10 +16,11 @@
 #define PIN_LED_SLOT_1     42   // HIGH: LED 1 sáng  | LOW: LED 1 tắt
 #define PIN_LED_SLOT_2     2    // HIGH: LED 2 sáng  | LOW: LED 2 tắt
 
-#define PIN_BTN_PWR        1    // Nút nguồn (LOW: Nhấn)
-#define PIN_BTN_QR1        14   // Nút QR1   (LOW: Nhấn)
-#define PIN_BTN_QR2        21   // Nút QR2   (LOW: Nhấn)
-#define PIN_BTN_QR3        47   // Nút QR3   (LOW: Nhấn)
+#define PIN_BTN_PWR        1    // Nút nguồn / Đánh thức (LOW: Nhấn)
+
+// Lưu ý: Các chân 14 và 21 trước đây dùng làm nút bấm giả lập QR1, QR2
+// nay đã chuyển sang làm I2C SCL (14) và SDA (21) cho mạch mở rộng Keypad.
+// Thao tác giao hàng hoặc chọn ngăn tủ hiện được bấm trực tiếp qua bàn phím Keypad (phím '1', '2'...).
 
 #define DEBOUNCE_TIME_MS   30     // Chống dội 30ms
 #define DOOR_OPEN_TIMEOUT  10000  // Chờ mở cửa tối đa 10 giây
