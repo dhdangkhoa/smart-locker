@@ -1,4 +1,5 @@
-#pragma once
+#ifndef QRCODE_READER_H
+#define QRCODE_READER_H
 
 #include <quirc.h>
 #include <Arduino.h>
@@ -10,3 +11,5 @@ extern volatile bool isAwake;
 extern volatile unsigned long wakeUpTimer;
 
 void qrScannerTask(void *pvParameters);
+
+#endif // QRCODE_READER_H

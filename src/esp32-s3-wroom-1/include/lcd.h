@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LCD_H
+#define LCD_H
 
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -10,3 +11,4 @@ void LCDPrintQR(const char *payload, int len);
 void LCDReady();
 
 
+#endif // LCD_H

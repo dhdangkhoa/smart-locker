@@ -1,5 +1,7 @@
 #include "camera_init.h"
 #include "qrcode_reader.h"
+#include "locker_control.h"
+#include "custom_keypad.h"
 
 #define WAKEUP_PIN 21 
 #define SCAN_TIMEOUT_MS 10000 
@@ -50,6 +52,10 @@ void setup() {
 
   setupWakeupPin();
 
+  // Khởi tạo các hệ thống cảm biến, servo, buzzer và bàn phím
+  Locker_Init();
+  Keypad_Init();
+
   if (!initCamera()) {
     Serial.println("Camera init failed!");
     return;
@@ -75,11 +81,32 @@ void setup() {
 
 void loop() {
   if (isAwake) {
-    // Kiểm tra nếu đã quá 10 giây mà không có hoạt động
+    // 1. Kiểm tra phím bấm từ bàn phím ma trận (nếu có bấm phím thì gia hạn 10s)
+    char key = Keypad_GetKey();
+    if (key) {
+      Serial.printf("[Keypad] Phim: %c\n", key);
+      wakeUpTimer = millis();
+    }
+
+    // 2. Kiểm tra các nút nhấn QR giao hàng
+    if (Sensor_IsButtonPressed(PIN_BTN_QR1)) {
+      wakeUpTimer = millis();
+      Locker_RunSlotDelivery(1);
+    }
+    if (Sensor_IsButtonPressed(PIN_BTN_QR2)) {
+      wakeUpTimer = millis();
+      Locker_RunSlotDelivery(2);
+    }
+    if (Sensor_IsButtonPressed(PIN_BTN_QR3)) {
+      wakeUpTimer = millis();
+      Locker_RunSlotDelivery(3);
+    }
+
+    // 3. Kiểm tra nếu đã quá 10 giây mà không có hoạt động thì đi ngủ
     if (millis() - wakeUpTimer > SCAN_TIMEOUT_MS) {
       enterLightSleep();
     }
   }
 
-  delay(200);
+  delay(50);
 }

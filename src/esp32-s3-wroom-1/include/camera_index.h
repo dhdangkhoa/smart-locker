@@ -1,3 +1,5 @@
+#ifndef CAMERA_INDEX_H
+#define CAMERA_INDEX_H
 
 //File: index_ov2640.html.gz, Size: 6687
 #define index_ov2640_html_gz_len 6687
@@ -947,3 +949,5 @@ const unsigned char index_ov5640_html_gz[] = {
   0x2D, 0xCC, 0xD1, 0xA3, 0xFF, 0x05, 0xDF, 0x19, 0xEB, 0xA3, 0xC1, 0x08, 0x01, 0x00
 
 };
+
+#endif // CAMERA_INDEX_H
