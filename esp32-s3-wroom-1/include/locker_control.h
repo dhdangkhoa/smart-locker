@@ -5,10 +5,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "sensors.h"
+#include "lcd.h"
 
 // ==========================================
 // ĐỊNH NGHĨA CHÂN SERVO VÀ BUZZER
-// (Lưu ý: Camera dùng các chân 4..18, tránh dùng trùng)
 // ==========================================
 #define PIN_SERVO_1        48   // Chân tín hiệu Servo khóa ngăn 1
 #define PIN_SERVO_2        45   // Chân tín hiệu Servo khóa ngăn 2
@@ -26,11 +26,15 @@ void Servo_ControlInit(void);
 void Servo_Unlock(uint8_t slot_id);
 void Servo_Lock(uint8_t slot_id);
 
-// Khởi tạo toàn bộ hệ thống tủ (bao gồm cả Sensors, Servo và Buzzer)
 void Locker_Init(void);
 
-// Quy trình mở tủ và xác nhận giao hàng
+// S5: Mở ngăn tủ, chờ mở và đóng cửa, kiểm tra cảm biến hàng
+// flag = 0: Luồng gửi hàng (kiểm tra sau khi đóng phải CÓ HÀNG)
+// flag = 1: Luồng nhận hàng (kiểm tra sau khi đóng phải TRỐNG)
+bool Locker_ProcessDoor(uint8_t slot_id, uint8_t flag);
+
+// Các hàm tương thích ngược
 bool Locker_ProcessDelivery(uint8_t slot_id);
-void Locker_RunSlotDelivery(uint8_t qr_button_num);
+void Locker_RunSlotDelivery(uint8_t slot_id);
 
 #endif // LOCKER_CONTROL_H

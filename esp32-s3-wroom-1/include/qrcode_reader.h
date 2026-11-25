@@ -10,6 +10,11 @@
 extern volatile bool isAwake;
 extern volatile unsigned long wakeUpTimer;
 
+// Quản lý trạng thái và truyền mã QR đã quét sang FSM chính
+bool QR_HasNewCode(QRCode_Data &outData);
+void QR_ClearCode(void);
+void QR_SetScanningEnabled(bool enabled);
+
 void qrScannerTask(void *pvParameters);
 
 #endif // QRCODE_READER_H

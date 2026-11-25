@@ -1,5 +1,26 @@
 #include "qrcode_reader.h"
 
+static volatile bool s_qr_available = false;
+static QRCode_Data s_latest_qr_data;
+static volatile bool s_scanning_enabled = true;
+
+bool QR_HasNewCode(QRCode_Data &outData) {
+    if (s_qr_available) {
+        outData = s_latest_qr_data;
+        s_qr_available = false;
+        return true;
+    }
+    return false;
+}
+
+void QR_ClearCode(void) {
+    s_qr_available = false;
+}
+
+void QR_SetScanningEnabled(bool enabled) {
+    s_scanning_enabled = enabled;
+}
+
 void qrScannerTask(void *pvParameters) {
   LCDInit();
   struct quirc *q = quirc_new();
@@ -21,8 +42,8 @@ void qrScannerTask(void *pvParameters) {
   Serial.println("Direct Grayscale QR Scanning Engine Loop Active.");
   
   while (1) {
-    // Nếu đang ngủ, tạm dừng lấy frame
-    if (!isAwake) {
+    // Nếu đang ngủ hoặc quét bị tạm dừng, tạm nghỉ task
+    if (!isAwake || !s_scanning_enabled) {
       vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }
@@ -36,13 +57,11 @@ void qrScannerTask(void *pvParameters) {
     int q_w, q_h;
     uint8_t *q_buf = quirc_begin(q, &q_w, &q_h);
 
-    // Verify incoming lens buffer dimensions match up safely with configured engine structure
     if (fb->width == q_w && fb->height == q_h) {
-      
-      // Because it's already grayscale, direct block memory copy is incredibly quick
+      // Sao chép nhanh bộ đệm ảnh grayscale
       memcpy(q_buf, fb->buf, q_w * q_h);
 
-      // TRẢ FRAME BUFFER NGAY LẬP TỨC ĐỂ TRÁNH LỖI cam_hal: EV-VSYNC-OVF
+      // Trả ngay frame buffer cho driver camera để tránh EV-VSYNC-OVF
       esp_camera_fb_return(fb);
       fb = NULL;
 
@@ -57,23 +76,16 @@ void qrScannerTask(void *pvParameters) {
 
         if (err == QUIRC_SUCCESS) {
           Serial.printf("[QR CODE DETECTED]: %s\n", data.payload);
-          
-          // Reset bộ đếm 10 giây khi quét được mã QR
+
+          // Reset bộ đếm timeout
           wakeUpTimer = millis();
 
-          static String lastPayload = "";
-          String currentPayload = String((const char*)data.payload);
+          QRCode_Data read_data = processReadData(data.payload, data.payload_len);
 
-          if (currentPayload != lastPayload) {
-            lastPayload = currentPayload;
-
-            LCDPrintQR((const char*)data.payload, data.payload_len);
-
-            QRCode_Data read_data = processReadData(data.payload, data.payload_len);
-            writePackageData(read_data);
+          if (strlen(read_data.MaDH) > 0) {
+            s_latest_qr_data = read_data;
+            s_qr_available = true; // Báo cho State Machine chính xử lý S3
           }
-        } else {
-          Serial.printf("Decoding failed pattern index: %s\n", quirc_strerror(err));
         }
       }
     }
@@ -83,10 +95,9 @@ void qrScannerTask(void *pvParameters) {
       fb = NULL;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(30));
+    vTaskDelay(pdMS_TO_TICKS(40));
   }
 
   quirc_destroy(q);
   vTaskDelete(NULL);
-  delay(5000);
 }
